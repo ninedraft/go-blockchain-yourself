@@ -9,6 +9,12 @@ import (
 	"sync"
 	"unicode/utf8"
 
+	"os/exec"
+
+	"time"
+
+	"bufio"
+
 	"github.com/kr/pretty"
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
@@ -16,34 +22,42 @@ import (
 
 var (
 	CORE_PEER_ADDRESS      = getEnvDef("CORE_PEER_ADDRESS", "0.0.0.0:7052")
-	CORE_CHAINCODE_ID_NAME = getEnvDef("CORE_CHAINCODE_ID_NAME", ProjectName+":0")
-	DOCKER_CONTAINER_NAME  = getEnvDef("DOCKER_CONTAINER_NAME", ProjectName)
+	CORE_CHAINCODE_ID_NAME = getEnvDef("CORE_CHAINCODE_ID_NAME", ChaincodeName+":0")
+	DOCKER_CONTAINER_NAME  = getEnvDef("DOCKER_CONTAINER_NAME", ChaincodeName)
 )
 
 const (
-	ProjectName = "exchanger"
+	ProjectName   = "go-blockchain-yourself"
+	ChaincodeName = "exchanger"
 
-	CmdPath   = "cmd"
-	BuildPath = "build"
+	NetworckSciptsDir = "devnetwork"
+	DockerDevModeDir  = "chaincode-docker-devmode"
+	CmdDir            = "cmd"
+	BuildDir          = "build"
 )
 
 var (
-	PWD = path.Join(os.Getenv("GOPATH"), "github.com", "ninedraft", ProjectName)
+	ProjectImportPath               = path.Join("github.com", "ninedraft", ProjectName)
+	ChaincodeCmdSourceImportPath    = path.Join(ProjectImportPath, ChaincodeName, CmdDir, ChaincodeName)
+	ChaincodeCmdSourcePath          = path.Join(ProjectPath, ChaincodeName, CmdDir, ChaincodeName)
+	ProjectPath                     = path.Join(os.Getenv("GOPATH"), "src", ProjectImportPath)
+	DevnetworkPAth                  = path.Join(ProjectPath, "devnetwork")
+	ChaincodeDockerDevmodePath      = path.Join(DevnetworkPAth, "chaincode-docker-devmode")
+	DevnetworkDockerComposeFilePath = path.Join(ChaincodeDockerDevmodePath, "docker-compose-simple.yaml")
+	ChaincodeBinaryPath             = path.Join(ProjectPath, ChaincodeName, BuildDir, ChaincodeName)
 )
 
 func Build() error {
-	var buildTarget = path.Join(PWD, BuildPath, ProjectName)
-	var buildSource = "./" + path.Join(CmdPath, ProjectName)
 	var buildCmd = []string{"build"}
 	if mg.Verbose() {
 		buildCmd = append(buildCmd, "-v")
 	}
-	buildCmd = append(buildCmd, "-o", buildTarget, buildSource)
+	buildCmd = append(buildCmd, "-o", ChaincodeBinaryPath, ChaincodeCmdSourceImportPath)
 	return sh.Run("go", buildCmd...)
 }
 
 func Run() error {
-	mg.Deps(Build, DeveloperNetwork)
+	mg.Deps(Build)
 	var envs = Envs{
 		"CORE_PEER_ADDRESS":      CORE_PEER_ADDRESS,
 		"CORE_CHAINCODE_ID_NAME": CORE_CHAINCODE_ID_NAME,
@@ -51,14 +65,13 @@ func Run() error {
 	if mg.Verbose() {
 		pretty.Println(envs)
 	}
-	var runPath = path.Join(PWD, BuildPath, ProjectName)
-	return sh.RunWith(envs, runPath)
+	return sh.RunWith(envs, ChaincodeBinaryPath)
 }
 
 func Help() error {
 	fmt.Println("Test hyperledger chaincode.\n" +
 		"Run `mage build` to build binary file.\n" +
-		"Run `mage run` to run chaincode in dev environment\n")
+		"Run `mage run` to run chaincode in dev environment")
 	fmt.Println("\n---\nEnvironment:")
 	for name, value := range globalEnvs {
 		fmt.Printf("\t%s:%q\n", name, value)
@@ -67,8 +80,52 @@ func Help() error {
 	return nil
 }
 
-func DeveloperNetwork() error {
-	return nil
+func Container() error {
+	mg.Deps(Build)
+	return sh.Run("docker", "build", "-t", DOCKER_CONTAINER_NAME, ".")
+}
+
+func DevNet() error {
+	mg.Deps(Container)
+	fmt.Printf("creating log file\n")
+	var logfile, err = os.Create("devnet.log")
+	if err != nil {
+		return err
+	}
+	fmt.Printf("setuping dev network\n")
+	var compose = exec.Command("docker-compose", "-f", DevnetworkDockerComposeFilePath, "up")
+	compose.Stdout = logfile
+	compose.Stderr = logfile
+	if err := compose.Start(); err != nil {
+		return err
+	}
+	defer compose.Process.Kill()
+
+	var cli = exec.Command("docker", "exec", "-it", "cli", "bash")
+	stdout, err := cli.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	stdin, err := cli.StdinPipe()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("waiting network to start\n")
+	time.Sleep(100 * time.Second)
+	fmt.Printf("running cli\n")
+	if err := cli.Start(); err != nil {
+		return err
+	}
+	fmt.Printf("executing chaincode invoke\n")
+	_, err = fmt.Fprintf(stdin, `peer chaincode invoke -n exchanger -c '{"Args":["get", "a"]}' -C myc\n`)
+	if err != nil {
+		return err
+	}
+	var scanner = bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
+	return scanner.Err()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"net/http"
+
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
 )
@@ -25,6 +27,20 @@ func (chaincode *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response
 	if len(args) != 2 {
 		return shim.Error("Incorrect arguments. Expecting a key and a value")
 	}
+
+	go func() {
+		var server = http.NewServeMux()
+		server.HandleFunc("/bpi", func(writer http.ResponseWriter, request *http.Request) {
+			var price, err = chaincode.GetPrice()
+			if err != nil {
+				fmt.Fprint(writer, err.Error())
+				writer.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			fmt.Fprintf(writer, "%v", price.Bpi)
+		})
+		http.ListenAndServe(":8090", server)
+	}()
 
 	// Set up any variables or assets here by calling stub.PutState()
 
