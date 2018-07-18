@@ -16,3 +16,4 @@
 exchanger
 !exchanger/
 devnet.log
+Будет удалено devnetwork/chaincode-docker-devmode/exchanger/
