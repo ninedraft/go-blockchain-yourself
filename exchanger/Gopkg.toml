@@ -28,10 +28,11 @@
 #  name = "google.golang.org/genproto"
 #  revision = "e538e04cad1b83e47b2ccbbbfe6d5fd5a816d290"
 
+required = ["github.com/magefile/mage"]
 
 [[constraint]]
   name = "github.com/hyperledger/fabric"
-  version = "v1.2.0"
+  version = "~v1.2.0"
 
 [[override]]
   name = "github.com/docker/docker"
@@ -39,7 +40,11 @@
 
 [[override]]
   name = "github.com/golang/protobuf"
-  version = "v1.1.0"
+  version = "~v1.1.0"
+
+[[override]]
+  name = "github.com/magefile/mage"
+  vrsion = "=2.1"
 
 [prune]
   go-tests = true

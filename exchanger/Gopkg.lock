@@ -107,8 +107,8 @@
   name = "github.com/gogo/protobuf"
   packages = ["proto"]
   pruneopts = "UT"
-  revision = "7d68e886eac4f7e34d0d82241a6273d6c304c5cf"
-  version = "v1.1.0"
+  revision = "636bf0302bc95575d69441b25a2603156ffdddf1"
+  version = "v1.1.1"
 
 [[projects]]
   digest = "1:1ebc8dddd36c5744ff70e49ae3e2db521c04aa3d2051629e2e63ed95329a9a53"
@@ -189,6 +189,23 @@
   pruneopts = "UT"
   revision = "e2ffdb16a802fe2bb95e2e35ff34f0e53aeef34f"
   version = "v0.1.0"
+
+[[projects]]
+  digest = "1:d298927319bc2ea374baa79ba14f354ac76226f18234adf153f4c5026e6f81d6"
+  name = "github.com/magefile/mage"
+  packages = [
+    ".",
+    "build",
+    "mage",
+    "mg",
+    "parse",
+    "parse/srcimporter",
+    "sh",
+    "types",
+  ]
+  pruneopts = "UT"
+  revision = "771ebed3d686dce3d36cab4fc9ee55c295ed8905"
+  version = "2.1"
 
 [[projects]]
   digest = "1:c568d7727aa262c32bdf8a3f7db83614f7af0ed661474b24588de635c20024c7"
@@ -411,6 +428,10 @@
   input-imports = [
     "github.com/hyperledger/fabric/core/chaincode/shim",
     "github.com/hyperledger/fabric/protos/peer",
+    "github.com/kr/pretty",
+    "github.com/magefile/mage",
+    "github.com/magefile/mage/mg",
+    "github.com/magefile/mage/sh",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
